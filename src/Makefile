@@ -2,7 +2,7 @@
 # FC=gfortran
 # FC=mpif90
 FC=ifort #-qopenmp
-
+# Hi its Art!
 # GFLAGS=-Wall -Wextra -pedantic -std=f2008 -g -O2 -fno-second-underscore -Wno-compare-reals -fcheck=all -fimplicit-none -fbacktrace -gdwarf-2 -fall-intrinsics -Wno-unused-function -fcheck=bounds -I/usr/local/include
 
 # GFLAGS= -O2 -I/usr/local/include -ffixed-line-length-none -Wno-uninitialized -Wall -fbounds-check
