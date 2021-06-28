@@ -46,6 +46,8 @@ program ROHSA
   real(xp) :: lb_sig         !! lower bound sigma
   real(xp) :: ub_sig         !! upper bound sigma
 
+  real(xp) :: sig_rmsf !!fixed dispersion of the rmsf
+
   character(len=512) :: filename_parameters !! name of the parameters file (default parameters.txt)
   character(len=512) :: filename            !! name of the data file
   character(len=512) :: fileout             !! name of the output result
@@ -115,13 +117,15 @@ program ROHSA
   init_grid = .false.
   init_spec = .false.
   norm_var = .false.
+
+  sig_rmsf = 1._xp
  
   !Read parameters
   call read_parameters(filename_parameters, filename, fileout, timeout, filename_noise, filename_init_spec, &
        n_gauss, lambda_amp, lambda_mu, lambda_sig, lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, &
        amp_fact_init, sig_init, lb_sig_init, ub_sig_init, lb_sig, ub_sig, init_option, maxiter_init, maxiter, &
        m, noise, regul, descent, lstd, ustd, iprint, iprint_init, save_grid, lym, init_grid, fileinit, init_spec, &
-       norm_var)
+       norm_var, sig_rmsf)
 
   !Call header
   call header()  
@@ -157,7 +161,8 @@ program ROHSA
   call main_rohsa(data, std_cube, grid_params, fileout, timeout, n_gauss, lambda_amp, lambda_mu, lambda_sig, &
        lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, amp_fact_init, sig_init, lb_sig_init, &
        ub_sig_init, lb_sig, ub_sig, maxiter_init, maxiter, m, noise, regul, descent, lstd, ustd, init_option, &
-       iprint, iprint_init, save_grid, lym, init_grid, fileinit, data_init, params_init, init_spec, norm_var)  
+       iprint, iprint_init, save_grid, lym, init_grid, fileinit, data_init, params_init, init_spec, norm_var, &
+       sig_rmsf)  
 
   do i=1, n_gauss
      grid_params(2+(3*(i-1)),:,:) = grid_params(2+(3*(i-1)),:,:) - 1._xp

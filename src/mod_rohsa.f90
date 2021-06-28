@@ -21,7 +21,8 @@ contains
   subroutine main_rohsa(data, std_data, grid_params, fileout, timeout, n_gauss, lambda_amp, lambda_mu, lambda_sig, &
        lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, amp_fact_init, sig_init, lb_sig_init, &
        ub_sig_init, lb_sig, ub_sig, maxiter_init, maxiter, m, noise, regul, descent, lstd, ustd, init_option, &
-       iprint, iprint_init, save_grid, lym, init_grid, fileinit, data_init, params_init, init_spec, norm_var)
+       iprint, iprint_init, save_grid, lym, init_grid, fileinit, data_init, params_init, init_spec, norm_var, &
+       sig_rmsf)
     
     implicit none
     
@@ -58,6 +59,8 @@ contains
     real(xp), intent(in) :: lb_sig_init    !! lower bound sigma init
     real(xp), intent(in) :: lb_sig         !! lower bound sigma
     real(xp), intent(in) :: ub_sig         !! upper bound sigma
+
+    real(xp), intent(in) :: sig_rmsf !!fixed dispersion of the rmsf
 
     character(len=8), intent(in)   :: init_option !!Init ROHSA with the mean or the std spectrum    
     character(len=512), intent(in) :: fileout   !! name of the output result
@@ -138,6 +141,8 @@ contains
     print*, "init_grid = ", init_grid
     print*, "init_spec = ", init_spec
     print*, "norm_var = ", norm_var
+    
+    print*, "sig_rmsf", sig_rmsf
 
     print*, " "
 
@@ -177,7 +182,7 @@ contains
 
     allocate(b_params(n_gauss))
 
-    !Use grid init
+    !Use grid init 
     if (init_grid .eqv. .true.) then
        print*, "Ignore logical keyword descent --> deactivated"
        !Init grid_params with data_init
@@ -191,6 +196,7 @@ contains
           b_params(i) = mean_2D(map, dim_data(2), dim_data(3))
           deallocate(map)
        end do
+       !FIXME wont work
     else
        !Use ROHSA algo       
        call dim_data2dim_cube(nside, dim_data, dim_cube)
@@ -213,12 +219,11 @@ contains
 
        !Allocate memory for parameters grids
        if (descent .eqv. .true.) then
-          allocate(fit_params(3*n_gauss, 1, 1))
+          allocate(fit_params(2*n_gauss, 1, 1))
           !Init sigma = 1 to avoid Nan
           do i=1,n_gauss
-             fit_params(1+(3*(i-1)),1,1) = 0._xp
-             fit_params(2+(3*(i-1)),1,1) = 1._xp
-             fit_params(3+(3*(i-1)),1,1) = 1._xp
+             fit_params(1+(2*(i-1)),1,1) = 0._xp
+             fit_params(2+(2*(i-1)),1,1) = 1._xp
           end do
        end if
 
@@ -251,10 +256,10 @@ contains
                 else
                    if (init_option .eq. "mean") then
                       print*, "Init mean spectrum"  
-                      call init_spectrum(n_gauss, fit_params(:,1,1), dim_cube(1), mean_spect, amp_fact_init, sig_init, &
-                           lb_sig_init, ub_sig_init, maxiter_init, m, iprint_init)
-                      ! print*, fit_params(:,1,1)
-                      ! stop
+                      call init_spectrum(n_gauss, fit_params(:,1,1), dim_cube(1), mean_spect, amp_fact_init, &
+                           sig_init, lb_sig_init, ub_sig_init, maxiter_init, m, iprint_init, sig_rmsf)
+                      print*, fit_params(:,1,1)
+                      stop
                    else 
                       print*, "init_option keyword should be 'mean' or 'std' or 'max' or 'maxnorm'"
                       stop
@@ -262,19 +267,21 @@ contains
                 end if
                 
                 !Init b_params
-                do i=1, n_gauss       
-                   b_params(i) = fit_params(3+(3*(i-1)),1,1)
-                end do
+                ! do i=1, n_gauss       
+                !    b_params(i) = fit_params(3+(3*(i-1)),1,1)
+                ! end do
              end if
                 
              if (regul .eqv. .false.) then
-                call upgrade(cube_mean, fit_params, power, n_gauss, dim_cube(1), lb_sig, ub_sig, maxiter, m, iprint)
+                call upgrade(cube_mean, fit_params, power, n_gauss, dim_cube(1), lb_sig, ub_sig, maxiter, &
+                     m, iprint, sig_rmsf)
              end if
 
              if (regul .eqv. .true.) then
                 if (n == 0) then                
                    print*,  "Update level", n
-                   call upgrade(cube_mean, fit_params, power, n_gauss, dim_cube(1), lb_sig, ub_sig, maxiter, m, iprint)
+                   call upgrade(cube_mean, fit_params, power, n_gauss, dim_cube(1), lb_sig, ub_sig, maxiter, &
+                        m, iprint, sig_rmsf)
                 end if
 
                 if (n > 0 .and. n < nside) then
@@ -293,11 +300,10 @@ contains
                    call cpu_time(lctime)
                    call update(cube_mean, fit_params, b_params, n_gauss, dim_cube(1), power, power, lambda_amp, lambda_mu, &
                         lambda_sig, lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, lb_sig, ub_sig, maxiter, &
-                        m, kernel, iprint, std_map, lym, c_lym, norm_var)
+                        m, kernel, iprint, std_map, lym, c_lym, norm_var, sig_rmsf)
                    call cpu_time(uctime)
                    print*, "Time level = ", uctime-lctime, "seconds."
                    print*, "Total time since started = ", (uctime - start), "seconds."
-                   ! print*, "Estimated total time", ((lctime - start) / 3600) + (((uctime-lctime) / 3600) * 4**(nside-n)), "hours."
                    print*, "Estimated time = ", ((uctime-lctime) / 3600) * 4**(nside-n), "hours."
 
                    !Write output time 
@@ -363,8 +369,8 @@ contains
           allocate(guess_spect(3*n_gauss))
           if (init_option .eq. "mean") then
              print*, "Use of the mean spectrum to initialize each los"
-             call init_spectrum(n_gauss, guess_spect, dim_cube(1), mean_spect, amp_fact_init, sig_init, &
-                  lb_sig_init, ub_sig_init, maxiter_init, m, iprint_init)
+             ! call init_spectrum(n_gauss, guess_spect, dim_cube(1), mean_spect, amp_fact_init, sig_init, &
+             !      lb_sig_init, ub_sig_init, maxiter_init, m, iprint_init)
           else
              print*, "init_option keyword should be 'mean' or 'std' or 'max'"
              stop
@@ -393,7 +399,7 @@ contains
        call cpu_time(lctime)
        call update(data, grid_params, b_params, n_gauss, dim_data(1), dim_data(2), dim_data(3), lambda_amp, lambda_mu, &
             lambda_sig, lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, lb_sig, ub_sig, maxiter, m, &
-            kernel, iprint, std_map, lym, c_lym, norm_var)      
+            kernel, iprint, std_map, lym, c_lym, norm_var, sig_rmsf)      
        call cpu_time(uctime)
        print*, "Time = ", uctime-lctime, "seconds."
        

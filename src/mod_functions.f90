@@ -218,7 +218,8 @@ contains
   end subroutine go_up_level
 
 
-  subroutine init_spectrum(n_gauss, params, dim_v, line, amp_fact_init, sig_init, lb_sig, ub_sig, maxiter, m, iprint)
+  subroutine init_spectrum(n_gauss, params, dim_v, line, amp_fact_init, sig_init, lb_sig, ub_sig, &
+       maxiter, m, iprint, sig_rmsf)
     !! Initialization of the mean sprectrum with N Gaussian
     implicit none
     
@@ -233,16 +234,17 @@ contains
     real(xp), intent(in) :: sig_init !! dispersion of additional Gaussian
     real(xp), intent(in) :: lb_sig !! lower bound sigma
     real(xp), intent(in) :: ub_sig !! upper bound sigma
+    real(xp), intent(in) :: sig_rmsf
 
-    real(xp), intent(inout), dimension(3*n_gauss)  :: params !! params to optimize
+    real(xp), intent(inout), dimension(2*n_gauss)  :: params !! params to optimize
 
     integer :: i, j, k, p
     real(xp), dimension(:), allocatable :: lb, ub
     real(xp), dimension(dim_v) :: model, residual
     real(xp), dimension(:), allocatable :: x
-    
+
     do i=1, n_gauss
-       allocate(lb(3*i), ub(3*i))
+       allocate(lb(2*i), ub(2*i))
        model = 0._xp
        residual = 0._xp
        lb = 0._xp; ub=0._xp
@@ -251,31 +253,30 @@ contains
 
        do j=1, i
           do k=1, dim_v
-             model(k) = model(k) + gaussian(k, params(1+(3*(j-1))), params(2+(3*(j-1))), params(3+(3*(j-1))))
+             model(k) = model(k) + gaussian(k, params(1+(2*(j-1))), params(2+(2*(j-1))), sig_rmsf)
           end do
        enddo
 
        residual = model - line
        
-       allocate(x(3*i))
+       allocate(x(2*i))
        x = 0._xp
        
-       do p=1, 3*(i-1)
+       do p=1, 2*(i-1)
           x(p) = params(p);
        end do
        
        do k=1, dim_v
           if (residual(k) == minval(residual, dim=dim_v)) then
-             x(2+(3*(i-1))) = k
+             x(2+(2*(i-1))) = k
           end if
        end do
 
-       x(1+(3*(i-1))) = line(int(x(2+(3*(i-1))))) * amp_fact_init
-       x(3+(3*(i-1))) = sig_init;
+       x(1+(2*(i-1))) = line(int(x(2+(2*(i-1))))) * amp_fact_init
        
-       call minimize_spec(3*i, m, x, lb, ub, line, dim_v, i, maxiter, iprint)
+       call minimize_spec(2*i, m, x, lb, ub, line, dim_v, i, maxiter, iprint, sig_rmsf)
        
-       do p=1, 3*i   
+       do p=1, 2*i   
           params(p) = x(p);
        end do
        
@@ -292,11 +293,10 @@ contains
     
     integer, intent(in) :: n_gauss !! number of Gaussian
     integer, intent(in) :: dim_v !! dimension along v axis
-    real(xp), intent(in) :: lb_sig !! lower bound sigma
-    real(xp), intent(in) :: ub_sig !! upper bound sigma
     real(xp), intent(in), dimension(dim_v) :: line !! spectrum   
-    real(xp), intent(inout), dimension(3*n_gauss) :: lb !! lower bounds
-    real(xp), intent(inout), dimension(3*n_gauss) :: ub !! upper bounds
+    real(xp), intent(in) :: lb_sig, ub_sig
+    real(xp), intent(inout), dimension(2*n_gauss) :: lb !! lower bounds
+    real(xp), intent(inout), dimension(2*n_gauss) :: ub !! upper bounds
     
     integer :: i
     real(xp) :: max_line
@@ -306,21 +306,17 @@ contains
     
     do i=1, n_gauss       
        ! amplitude bounds
-       lb(1+(3*(i-1))) = 0._xp;
-       ub(1+(3*(i-1))) = max_line;
+       lb(1+(2*(i-1))) = 0._xp;
+       ub(1+(2*(i-1))) = max_line;
        
        ! mean bounds 
-       lb(2+(3*(i-1))) = 0._xp;
-       ub(2+(3*(i-1))) = dim_v;
-       
-       ! sigma bounds 
-       lb(3+(3*(i-1))) = lb_sig;
-       ub(3+(3*(i-1))) = ub_sig;
+       lb(2+(2*(i-1))) = 0._xp;
+       ub(2+(2*(i-1))) = dim_v;
     end do
   end subroutine init_bounds
 
 
-  subroutine upgrade(cube, params, power, n_gauss, dim_v, lb_sig, ub_sig, maxiter, m, iprint)
+  subroutine upgrade(cube, params, power, n_gauss, dim_v, lb_sig, ub_sig, maxiter, m, iprint, sig_rmsf)
     !! Upgrade parameters (spectra to spectra) using minimize function (here based on L-BFGS-B optimization module)
     implicit none
 
@@ -340,6 +336,7 @@ contains
     real(xp), dimension(:), allocatable :: line
     real(xp), dimension(:), allocatable :: x
     real(xp), dimension(:), allocatable :: lb, ub
+    real(xp), intent(in) :: sig_rmsf
 
     do i=1, power
        do j=1, power
@@ -351,7 +348,7 @@ contains
           x = params(:,i,j)
           
           call init_bounds(line, n_gauss, dim_v, lb, ub, lb_sig, ub_sig)
-          call minimize_spec(3*n_gauss, m, x, lb, ub, line, dim_v, n_gauss, maxiter, iprint)
+          call minimize_spec(3*n_gauss, m, x, lb, ub, line, dim_v, n_gauss, maxiter, iprint, sig_rmsf)
           
           params(:,i,j) = x
           
@@ -364,7 +361,7 @@ contains
 
   subroutine update(cube, params, b_params, n_gauss, dim_v, dim_y, dim_x, lambda_amp, lambda_mu, lambda_sig, &
        lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, lb_sig, ub_sig, maxiter, m, kernel, &
-       iprint, std_map, lym, c_lym, norm_var)
+       iprint, std_map, lym, c_lym, norm_var, sig_rmsf)
     !! Update parameters (entire cube) using minimize function (here based on L-BFGS-B optimization module)
     implicit none
     
@@ -382,15 +379,13 @@ contains
     real(xp), intent(in) :: lambda_amp !! lambda for amplitude parameter
     real(xp), intent(in) :: lambda_mu !! lambda for mean position parameter
     real(xp), intent(in) :: lambda_sig !! lambda for dispersion parameter
-
     real(xp), intent(in) :: lambda_var_amp !! lambda for amp dispersion parameter
     real(xp), intent(in) :: lambda_var_mu  !! lambda for mean position dispersion parameter
     real(xp), intent(in) :: lambda_var_sig !! lambda for variance dispersion parameter
-
     real(xp), intent(in) :: lambda_lym_sig !! lambda for difference dispersion parameter (2-gaussaian)
-
     real(xp), intent(in) :: lb_sig !! lower bound sigma
     real(xp), intent(in) :: ub_sig !! upper bound sigma
+    real(xp), intent(in) :: sig_rmsf
 
     logical, intent(in) :: lym !! if true --> activate 2-Gaussian decomposition for Lyman alpha nebula emission
     logical, intent(in) :: norm_var !! if true --> normalize the var sig energy term   
@@ -430,10 +425,11 @@ contains
 
     if (norm_var .eqv. .false.) then
        call minimize(n_beta, m, beta, lb, ub, cube, n_gauss, dim_v, dim_y, dim_x, lambda_amp, lambda_mu, lambda_sig, &
-            lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, maxiter, kernel, iprint, std_map, lym, c_lym)
+            lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, maxiter, kernel, iprint, std_map, &
+            lym, c_lym, sig_rmsf)
     else
-       call minimize_norm(n_beta, m, beta, lb, ub, cube, n_gauss, dim_v, dim_y, dim_x, lambda_amp, lambda_mu, lambda_sig, &
-            lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, maxiter, kernel, iprint, std_map, lym, c_lym)       
+       ! call minimize_norm(n_beta, m, beta, lb, ub, cube, n_gauss, dim_v, dim_y, dim_x, lambda_amp, lambda_mu, lambda_sig, &
+       !      lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, maxiter, kernel, iprint, std_map, lym, c_lym)       
     end if
 
     call unravel_3D(beta, params, 3*n_gauss, dim_y, dim_x)

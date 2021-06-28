@@ -1,8 +1,8 @@
 #fortran compiler
 # FC=gfortran
 # FC=mpif90
-FC=ifort #-qopenmp
-# Hi its Art!
+FC=ifort
+
 # GFLAGS=-Wall -Wextra -pedantic -std=f2008 -g -O2 -fno-second-underscore -Wno-compare-reals -fcheck=all -fimplicit-none -fbacktrace -gdwarf-2 -fall-intrinsics -Wno-unused-function -fcheck=bounds -I/usr/local/include
 
 # GFLAGS= -O2 -I/usr/local/include -ffixed-line-length-none -Wno-uninitialized -Wall -fbounds-check
@@ -14,7 +14,7 @@ CFLAGS= -lm -g -O2 -lcfitsio
 
 OUT= ROHSA-FITS-RM
 
-all: blas.o lbfgsb.o linpack.o timer.o mod_constants.o mod_convert.o mod_fits.o mod_inout.o mod_array.o mod_optimize.o mod_optimize_lym.o mod_minimize.o mod_functions.o mod_start.o mod_rohsa.o main.o
+all: blas.o lbfgsb.o linpack.o timer.o mod_constants.o mod_convert.o mod_fits.o mod_inout.o mod_array.o mod_optimize.o mod_minimize.o mod_functions.o mod_start.o mod_rohsa.o main.o
 	$(FC) $^ $(CFLAGS) -o $(OUT)
 
 main.o: main.f90
@@ -47,9 +47,6 @@ mod_array.o: mod_array.f90
 	$(FC) $(GFLAGS) -c $^
 
 mod_optimize.o: mod_optimize.f90
-	$(FC) $(GFLAGS) -c $^
-
-mod_optimize_lym.o: mod_optimize_lym.f90
 	$(FC) $(GFLAGS) -c $^
 
 mod_minimize.o: mod_minimize.f90
