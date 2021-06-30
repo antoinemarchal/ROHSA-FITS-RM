@@ -42,7 +42,7 @@ contains
     
     do i=1, n_gauss
        do k=1, dim_v
-          g = gaussian(k, params(1+(3*(i-1))), params(2+(3*(i-1))), sig_rmsf)
+          g = gaussian(k, params(1+(2*(i-1))), params(2+(2*(i-1))), sig_rmsf)
           model(k) = model(k) + g
        enddo
     enddo
@@ -136,10 +136,10 @@ contains
     real(xp), dimension(:), allocatable :: model
     real(xp) :: gauss
 
-    allocate(deriv(3*n_gauss, dim_y, dim_x))
+    allocate(deriv(2*n_gauss, dim_y, dim_x))
     allocate(residual(dim_v, dim_y, dim_x))
     allocate(b_params(n_gauss))
-    allocate(params(3*n_gauss, dim_y, dim_x))
+    allocate(params(2*n_gauss, dim_y, dim_x))
     allocate(conv_amp(dim_y, dim_x), conv_mu(dim_y, dim_x), conv_sig(dim_y, dim_x))
     allocate(conv_conv_amp(dim_y, dim_x), conv_conv_mu(dim_y, dim_x), conv_conv_sig(dim_y, dim_x))
     allocate(image_amp(dim_y, dim_x), image_mu(dim_y, dim_x), image_sig(dim_y, dim_x))
@@ -153,9 +153,9 @@ contains
     model = 0._xp
     gauss = 0._xp
     
-    n_beta = (3*n_gauss * dim_y * dim_x) + n_gauss
+    n_beta = (2*n_gauss * dim_y * dim_x) + n_gauss
 
-    call unravel_3D(beta, params, 3*n_gauss, dim_y, dim_x)    
+    call unravel_3D(beta, params, 2*n_gauss, dim_y, dim_x)    
     do i=1,n_gauss
        b_params(i) = beta((n_beta-n_gauss)+i)
     end do
@@ -181,57 +181,50 @@ contains
        conv_conv_amp = 0._xp; conv_conv_mu = 0._xp; conv_conv_sig = 0._xp
        image_amp = 0._xp; image_mu = 0._xp; image_sig = 0._xp
        
-       image_amp = params(1+(3*(i-1)),:,:)
-       image_mu = params(2+(3*(i-1)),:,:)
-       image_sig = params(3+(3*(i-1)),:,:)
+       image_amp = params(1+(2*(i-1)),:,:)
+       image_mu = params(2+(2*(i-1)),:,:)
+       !image_sig = sig_rmsf
        
        call convolution_2D_mirror(image_amp, conv_amp, dim_y, dim_x, kernel, 3)
        call convolution_2D_mirror(image_mu, conv_mu, dim_y, dim_x, kernel, 3)
-       call convolution_2D_mirror(image_sig, conv_sig, dim_y, dim_x, kernel, 3)
+       !call convolution_2D_mirror(image_sig, conv_sig, dim_y, dim_x, kernel, 3)
        
        call convolution_2D_mirror(conv_amp, conv_conv_amp, dim_y, dim_x, kernel, 3)
        call convolution_2D_mirror(conv_mu, conv_conv_mu, dim_y, dim_x, kernel, 3)
-       call convolution_2D_mirror(conv_sig, conv_conv_sig, dim_y, dim_x, kernel, 3)
+       !call convolution_2D_mirror(conv_sig, conv_conv_sig, dim_y, dim_x, kernel, 3)
        
        do l=1, dim_x
           do j=1, dim_y
              !Regularization
              f = f + (0.5_xp * lambda_amp * conv_amp(j,l)**2)
              f = f + (0.5_xp * lambda_mu * conv_mu(j,l)**2)
-             f = f + (0.5_xp * lambda_sig * conv_sig(j,l)**2) + (0.5_xp * lambda_var_sig * (image_sig(j,l) - b_params(i))**2._xp)
+             !f = f + (0.5_xp * lambda_sig * conv_sig(j,l)**2) + (0.5_xp * lambda_var_sig * (image_sig(j,l) - b_params(i))**2._xp)
              
-             g((n_beta-n_gauss)+i) = g((n_beta-n_gauss)+i) - (lambda_var_sig * (image_sig(j,l) - b_params(i)))        
+             !g((n_beta-n_gauss)+i) = g((n_beta-n_gauss)+i) - (lambda_var_sig * (image_sig(j,l) - b_params(i)))        
              
              !
              do k=1, dim_v                          
                 if (std_map(j,l) > 0._xp) then
-                   deriv(1+(3*(i-1)),j,l) = deriv(1+(3*(i-1)),j,l) + (exp( ( -(real(k,xp) - params(2+(3*(i-1)),j,l))**2._xp) &
-                        / (2._xp * params(3+(3*(i-1)),j,l)**2._xp))) &
+                   deriv(1+(2*(i-1)),j,l) = deriv(1+(2*(i-1)),j,l) + (exp( ( -(real(k,xp) - params(2+(2*(i-1)),j,l))**2._xp) &
+                        / (2._xp * sig_rmsf**2._xp))) &
                         * (residual(k,j,l)/std_map(j,l)**2._xp) 
 
-                   deriv(2+(3*(i-1)),j,l) = deriv(2+(3*(i-1)),j,l) + (params(1+(3*(i-1)),j,l) * &
-                        ( real(k,xp) - params(2+(3*(i-1)),j,l) ) / (params(3+(3*(i-1)),j,l)**2._xp) * &
-                        exp( ( -(real(k,xp) - params(2+(3*(i-1)),j,l))**2._xp) &
-                        / (2._xp * params(3+(3*(i-1)),j,l)**2._xp))) &
-                        * (residual(k,j,l)/std_map(j,l)**2._xp) 
-
-                   deriv(3+(3*(i-1)),j,l) = deriv(3+(3*(i-1)),j,l) + (params(1+(3*(i-1)),j,l) * &
-                        ( real(k,xp) - params(2+(3*(i-1)),j,l) )**2._xp / (params(3+(3*(i-1)),j,l)**3._xp) * &
-                        exp( ( -(real(k,xp) - params(2+(3*(i-1)),j,l))**2._xp) / (2._xp * params(3+(3*(i-1)),j,l)**2._xp))) &
+                   deriv(2+(2*(i-1)),j,l) = deriv(2+(2*(i-1)),j,l) + (params(1+(2*(i-1)),j,l) * &
+                        ( real(k,xp) - params(2+(2*(i-1)),j,l) ) / (sig_rmsf**2._xp) * &
+                        exp( ( -(real(k,xp) - params(2+(2*(i-1)),j,l))**2._xp) &
+                        / (2._xp * sig_rmsf**2._xp))) &
                         * (residual(k,j,l)/std_map(j,l)**2._xp)
                 end if
              end do
 
-             deriv(1+(3*(i-1)),j,l) = deriv(1+(3*(i-1)),j,l) + (lambda_amp * conv_conv_amp(j,l))
-             deriv(2+(3*(i-1)),j,l) = deriv(2+(3*(i-1)),j,l) + (lambda_mu * conv_conv_mu(j,l))
-             deriv(3+(3*(i-1)),j,l) = deriv(3+(3*(i-1)),j,l) + (lambda_sig * conv_conv_sig(j,l) + &
-                  (lambda_var_sig * (image_sig(j,l) - b_params(i))))
+             deriv(1+(2*(i-1)),j,l) = deriv(1+(2*(i-1)),j,l) + (lambda_amp * conv_conv_amp(j,l))
+             deriv(2+(2*(i-1)),j,l) = deriv(2+(2*(i-1)),j,l) + (lambda_mu * conv_conv_mu(j,l))
           end do
           !
        end do
     end do        
     
-    call ravel_3D(deriv, g, 3*n_gauss, dim_y, dim_x)
+    call ravel_3D(deriv, g, 2*n_gauss, dim_y, dim_x)
 
     deallocate(deriv)
     deallocate(residual)

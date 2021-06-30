@@ -258,8 +258,7 @@ contains
                       print*, "Init mean spectrum"  
                       call init_spectrum(n_gauss, fit_params(:,1,1), dim_cube(1), mean_spect, amp_fact_init, &
                            sig_init, lb_sig_init, ub_sig_init, maxiter_init, m, iprint_init, sig_rmsf)
-                      print*, fit_params(:,1,1)
-                      stop
+                      print*, "fit mean spectrum: ",fit_params(:,1,1)
                    else 
                       print*, "init_option keyword should be 'mean' or 'std' or 'max' or 'maxnorm'"
                       stop
