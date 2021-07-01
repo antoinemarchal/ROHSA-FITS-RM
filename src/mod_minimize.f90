@@ -67,7 +67,6 @@ contains
           call myresidual(x, line, residual, n_gauss, dim_v, sig_rmsf)
           f = myfunc_spec(residual)          
           call mygrad_spec(n_gauss, g, residual, x, dim_v, sig_rmsf)
-          
        elseif (task(1:5) .eq. 'NEW_X') then
           !        1) Terminate if the total number of f and g evaluations
           !             exceeds maxiter.
@@ -148,8 +147,7 @@ contains
        if (task(1:2) .eq. 'FG') then          
           !     Compute function f and gradient g for the sample problem.
           call f_g_cube_fast(f, g, cube, x, dim_v, dim_y, dim_x, n_gauss, kernel, lambda_amp, lambda_mu, lambda_sig, &
-               lambda_var_amp, lambda_var_mu, lambda_var_sig, std_map, sig_rmsf)
-          
+               lambda_var_amp, lambda_var_mu, lambda_var_sig, std_map, sig_rmsf) 
        elseif (task(1:5) .eq. 'NEW_X') then
           !        1) Terminate if the total number of f and g evaluations
           !             exceeds maxiter.

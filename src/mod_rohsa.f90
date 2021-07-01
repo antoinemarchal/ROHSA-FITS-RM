@@ -188,15 +188,6 @@ contains
        !Init grid_params with data_init
        grid_params = 0._xp
        grid_params = data_init
-
-       !Init b_params
-       do i=1, n_gauss       
-          allocate(map(dim_data(2), dim_data(3)))
-          map = grid_params(3+(3*(i-1)),:,:)
-          b_params(i) = mean_2D(map, dim_data(2), dim_data(3))
-          deallocate(map)
-       end do
-       !FIXME wont work
     else
        !Use ROHSA algo       
        call dim_data2dim_cube(nside, dim_data, dim_cube)
@@ -264,11 +255,6 @@ contains
                       stop
                    end if
                 end if
-                
-                !Init b_params
-                ! do i=1, n_gauss       
-                !    b_params(i) = fit_params(3+(3*(i-1)),1,1)
-                ! end do
              end if
                 
              if (regul .eqv. .false.) then
@@ -279,8 +265,8 @@ contains
              if (regul .eqv. .true.) then
                 if (n == 0) then                
                    print*,  "Update level", n
-                   call upgrade(cube_mean, fit_params, power, n_gauss, dim_cube(1), lb_sig, ub_sig, maxiter, &
-                        m, iprint, sig_rmsf)
+                   ! call upgrade(cube_mean, fit_params, power, n_gauss, dim_cube(1), lb_sig, ub_sig, maxiter, &
+                   !      m, iprint, sig_rmsf)
                 end if
 
                 if (n > 0 .and. n < nside) then
@@ -341,18 +327,18 @@ contains
           write(*,*) "Reshape cube, restore initial dimensions :"
           write(*,*) "dim_v, dim_y, dim_x = ", dim_data
 
-          call reshape_down(fit_params, grid_params, (/3*n_gauss, dim_cube(2), dim_cube(3)/), &
-               (/3*n_gauss, dim_data(2), dim_data(3)/))
+          call reshape_down(fit_params, grid_params, (/2*n_gauss, dim_cube(2), dim_cube(3)/), &
+               (/2*n_gauss, dim_data(2), dim_data(3)/))
 
           if (save_grid .eqv. .true.) then
              !Save previous last level in fits file
-             allocate(grid_fits(dim_data(3), dim_data(2),3*n_gauss))
+             allocate(grid_fits(dim_data(3), dim_data(2),2*n_gauss))
              fileout_nside = trim(fileout(:len_trim(fileout)-5)) // "_nside_" // trim(str(nside)) // ".fits"
              call unroll_fits(grid_params, grid_fits)
              do i=1, n_gauss
-                grid_fits(:,:,2+(3*(i-1))) = grid_fits(:,:,2+(3*(i-1))) - 1._xp
+                grid_fits(:,:,2+(2*(i-1))) = grid_fits(:,:,2+(2*(i-1))) - 1._xp
              end do
-             call writefits3D(fileout_nside, grid_fits, dim_data(3), dim_data(2), 3*n_gauss)
+             call writefits3D(fileout_nside, grid_fits, dim_data(3), dim_data(2), 2*n_gauss)
              deallocate(grid_fits)
              !Save m vector (b_params)
              fileout_nside_m = trim(fileout(2:len_trim(fileout)-5)) // "_nside_" // trim(str(nside)) // "_m_vector.dat"
@@ -365,7 +351,7 @@ contains
           end if
 
        else
-          allocate(guess_spect(3*n_gauss))
+          allocate(guess_spect(2*n_gauss))
           if (init_option .eq. "mean") then
              print*, "Use of the mean spectrum to initialize each los"
              ! call init_spectrum(n_gauss, guess_spect, dim_cube(1), mean_spect, amp_fact_init, sig_init, &

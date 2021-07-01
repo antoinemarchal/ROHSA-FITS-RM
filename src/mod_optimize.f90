@@ -183,25 +183,18 @@ contains
        
        image_amp = params(1+(2*(i-1)),:,:)
        image_mu = params(2+(2*(i-1)),:,:)
-       !image_sig = sig_rmsf
        
        call convolution_2D_mirror(image_amp, conv_amp, dim_y, dim_x, kernel, 3)
        call convolution_2D_mirror(image_mu, conv_mu, dim_y, dim_x, kernel, 3)
-       !call convolution_2D_mirror(image_sig, conv_sig, dim_y, dim_x, kernel, 3)
        
        call convolution_2D_mirror(conv_amp, conv_conv_amp, dim_y, dim_x, kernel, 3)
        call convolution_2D_mirror(conv_mu, conv_conv_mu, dim_y, dim_x, kernel, 3)
-       !call convolution_2D_mirror(conv_sig, conv_conv_sig, dim_y, dim_x, kernel, 3)
        
        do l=1, dim_x
           do j=1, dim_y
              !Regularization
              f = f + (0.5_xp * lambda_amp * conv_amp(j,l)**2)
-             f = f + (0.5_xp * lambda_mu * conv_mu(j,l)**2)
-             !f = f + (0.5_xp * lambda_sig * conv_sig(j,l)**2) + (0.5_xp * lambda_var_sig * (image_sig(j,l) - b_params(i))**2._xp)
-             
-             !g((n_beta-n_gauss)+i) = g((n_beta-n_gauss)+i) - (lambda_var_sig * (image_sig(j,l) - b_params(i)))        
-             
+             f = f + (0.5_xp * lambda_mu * conv_mu(j,l)**2)                          
              !
              do k=1, dim_v                          
                 if (std_map(j,l) > 0._xp) then

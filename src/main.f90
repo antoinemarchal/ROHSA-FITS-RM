@@ -70,17 +70,6 @@ program ROHSA
   integer, dimension(3) :: dim_data !! dimension of reshape cube
 
   integer :: thread_id, i
-
-  ! !$OMP PARALLEL PRIVATE(thread_id)
-  ! thread_id = OMP_GET_THREAD_NUM()
-
-  ! DO i=0,OMP_GET_MAX_THREADS()
-  !    IF (i == thread_id) THEN
-  !       PRINT *, "Hello from process: ", thread_id
-  !    END IF
-  !    !$OMP BARRIER
-  ! END DO
-  ! !$OMP END PARALLEL
      
   call cpu_time(start)
 
@@ -88,12 +77,12 @@ program ROHSA
   call get_command_argument(1, filename_parameters)
     
   !Default user parameters
-  n_gauss = 6
+  n_gauss = 1
 
   lambda_amp = 1._xp
   lambda_mu = 1._xp
   lambda_sig = 1._xp
-  lambda_var_sig = 1._xp
+  lambda_var_sig = 0._xp
   lambda_lym_sig = 0._xp
 
   amp_fact_init = 2._xp/3._xp
@@ -155,8 +144,8 @@ program ROHSA
 
   !Call ROHSA subroutine
   dim_data = shape(data)
-  allocate(grid_params(3*n_gauss, dim_data(2), dim_data(3)))
-  allocate(grid_fits(dim_data(3), dim_data(2),3*n_gauss))
+  allocate(grid_params(2*n_gauss, dim_data(2), dim_data(3)))
+  allocate(grid_fits(dim_data(3), dim_data(2),2*n_gauss))
 
   call main_rohsa(data, std_cube, grid_params, fileout, timeout, n_gauss, lambda_amp, lambda_mu, lambda_sig, &
        lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, amp_fact_init, sig_init, lb_sig_init, &
@@ -165,7 +154,7 @@ program ROHSA
        sig_rmsf)  
 
   do i=1, n_gauss
-     grid_params(2+(3*(i-1)),:,:) = grid_params(2+(3*(i-1)),:,:) - 1._xp
+     grid_params(2+(2*(i-1)),:,:) = grid_params(2+(2*(i-1)),:,:) - 1._xp
   end do
 
   !Write output fits file
@@ -173,7 +162,7 @@ program ROHSA
   print*, "_____ Write output file _____"
   print*, " "
   call unroll_fits(grid_params, grid_fits)
-  call writefits3D(fileout,grid_fits,dim_data(3),dim_data(2),3*n_gauss)
+  call writefits3D(fileout,grid_fits,dim_data(3),dim_data(2),2*n_gauss)
 
   call ender()
 

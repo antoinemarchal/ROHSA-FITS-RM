@@ -3,18 +3,10 @@
     ,fileout =  '!../data/ROHSA_RM_out.fits'
     ,timeout =  'timestep.dat'
     ,filename_noise = ''
-    ,n_gauss =  1
+    ,n_gauss =  2
     ,lambda_amp =  1.0d0
     ,lambda_mu =  1.0d0
-    ,lambda_sig =  1.0d0
-    ,lambda_var_sig =  1.0d0
-    ,lambda_lym_sig =  0d0
     ,amp_fact_init =  0.6666d0
-    ,sig_init =  4.0d0
-    ,lb_sig_init =  1.0d0
-    ,ub_sig_init =  12.0d0
-    ,lb_sig =  1.0d0
-    ,ub_sig =  100.0d0
     ,init_option =  'mean'
     ,maxiter_init =  15000
     ,maxiter =  800
@@ -27,7 +19,6 @@
     ,iprint =  1
     ,iprint_init =  -1
     ,save_grid =  .true.
-    ,norm_var =  .true.
     ,sig_rmsf = 2.3d0
     /
 

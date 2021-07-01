@@ -342,13 +342,13 @@ contains
        do j=1, power
           ! print*, (i-1)*power+j, " / ", power*power
           allocate(line(dim_v))
-          allocate(x(3*n_gauss), lb(3*n_gauss), ub(3*n_gauss))
+          allocate(x(2*n_gauss), lb(2*n_gauss), ub(2*n_gauss))
 
           line = cube(:,i,j)
           x = params(:,i,j)
           
           call init_bounds(line, n_gauss, dim_v, lb, ub, lb_sig, ub_sig)
-          call minimize_spec(3*n_gauss, m, x, lb, ub, line, dim_v, n_gauss, maxiter, iprint, sig_rmsf)
+          call minimize_spec(2*n_gauss, m, x, lb, ub, line, dim_v, n_gauss, maxiter, iprint, sig_rmsf)
           
           params(:,i,j) = x
           
@@ -401,9 +401,6 @@ contains
     real(xp), dimension(:), allocatable :: lb, ub
     real(xp), dimension(:), allocatable :: beta
 
-    !print*, "Input params in update step: ", params
-    !stop
-
     n_beta = (2*n_gauss * dim_y * dim_x) + n_gauss
 
     allocate(lb(n_beta), ub(n_beta), beta(n_beta))
@@ -415,10 +412,7 @@ contains
           call init_bounds(cube(:,i,j), n_gauss, dim_v, lb_3D(:,i,j), ub_3D(:,i,j), lb_sig, ub_sig)
        end do
     end do
-    !PRINT STOP FOR LB UB
-    !print*, "printing lb and ub 0th los: ",ub_3D(:,1,1)," ",lb_3D(:,1,1)
-    !print*, "cube00 and dim_v: ",cube(:,1,1), " ",dim_v
-    !stop
+
     call ravel_3D(lb_3D, lb, 2*n_gauss, dim_y, dim_x)
     call ravel_3D(ub_3D, ub, 2*n_gauss, dim_y, dim_x)
     call ravel_3D(params, beta, 2*n_gauss, dim_y, dim_x)
@@ -428,16 +422,10 @@ contains
        ub((n_beta-n_gauss)+i) = ub_sig
        beta((n_beta-n_gauss)+i) = b_params(i)
     end do
-    print*,"lb and ub: ",lb," ",ub
-    stop
-    if (norm_var .eqv. .false.) then
-       call minimize(n_beta, m, beta, lb, ub, cube, n_gauss, dim_v, dim_y, dim_x, lambda_amp, lambda_mu, lambda_sig, &
+
+    call minimize(n_beta, m, beta, lb, ub, cube, n_gauss, dim_v, dim_y, dim_x, lambda_amp, lambda_mu, lambda_sig, &
             lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, maxiter, kernel, iprint, std_map, &
             lym, c_lym, sig_rmsf)
-    else
-       ! call minimize_norm(n_beta, m, beta, lb, ub, cube, n_gauss, dim_v, dim_y, dim_x, lambda_amp, lambda_mu, lambda_sig, &
-       !      lambda_var_amp, lambda_var_mu, lambda_var_sig, lambda_lym_sig, maxiter, kernel, iprint, std_map, lym, c_lym)       
-    end if
 
     call unravel_3D(beta, params, 2*n_gauss, dim_y, dim_x)
     do i=1,n_gauss
